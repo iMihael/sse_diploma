@@ -104,9 +104,9 @@ int main()
     BIGNUM *_s = BN_new();
     BN_CTX *gfg = BN_CTX_new();
     
-    int gg[]= {7, 4,  0, -1};
+    int gg[]= {999, 45, 5, 0, -1};
     int hh[] = {5, 3, 0, -1};
-    int ff[] = {10, 5, 4, 1, 0, -1};
+    int ff[] = {560, 56, 47, 1, 0, -1};
     int ss[64] = {0};
     
     BN_GF2m_arr2poly(gg, _g);
