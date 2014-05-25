@@ -16,6 +16,32 @@ int set_bit(int t, int pos, int val)
     return t & ~(1 << pos) | (val << pos);
 }
 
+void BN_GF2m_mod_bin(BIGNUM *r, BIGNUM *a, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int gi = 0;
+    
+    for(int i = 2 * p[0] - 1; i >= p[0]; i--)
+    {
+        gi = BN_is_bit_set(a, i);
+        BIGNUM * _t = BN_new();
+        BN_set_bit_value(_t, i - p[0], gi);
+        BN_set_bit_value(_t, i - p[0]+p[1], gi);
+        BN_set_bit_value(_t, i - p[0]+p[2], gi);
+        BN_set_bit_value(_t, i - p[0]+p[3], gi);
+        
+        BN_GF2m_add_sse(a, a, _t);
+    }
+    
+    
+    
+    BN_copy(r, a);
+    BN_mask_bits(r, p[0]);
+}
 
 int main()
 {
@@ -37,7 +63,7 @@ int main()
     //g = x7 + x4 + x2 + 1
     int g;
     
-    int iteration = 0xFFFFFF;
+    int iteration = 0xFFFF;
     float t = clock();
     
     
@@ -94,6 +120,8 @@ int main()
     
     
     
+    
+    
     BIGNUM * modb = BN_new();
     int mod_arr[] = {13, 9, 6, 2, 0, -1};
     BN_GF2m_arr2poly(mod_arr, modb);
@@ -104,106 +132,16 @@ int main()
     
     BIGNUM * rb = BN_new();
     
-    BN_GF2m_mod(rb, gb, modb);
+    BN_GF2m_mod_bin(rb, gb, mod_arr);
+    
+    //classic BIGNUM GF2m_mod example
+    
+    //BN_GF2m_mod(rb, gb, modb);
     int r_arr[16] = {0};
     BN_GF2m_poly2arr(rb, r_arr, 16);
     
     for(int i=0;i<16;i++)
         printf("%d|", r_arr[i]);
     
-    // r = 0x37
-    // r = x5 + x4 + x2 + x + 1
     
-//    BIGNUM * a = BN_new();
-//    BIGNUM * r = BN_new();
-//    BIGNUM * r2 = BN_new();
-//    BIGNUM * p = BN_new();
-//    int n = 0xFFFFF;
-//    
-//    BN_rand(a, 65384, 1, 1);
-//    BN_rand(p, 64384, 1, 1);
-    
-    
-    
-    
-//    int _aarray[] = {176 ,15, 1, 0, -1};
-//    int _barray[] = {163 , 7, 1, 0, -1};
-//    
-//    BN_GF2m_arr2poly(_aarray, a);
-//    BN_GF2m_arr2poly(_barray, p);
-    
-    
-//    float t;
-//
-//    t = clock();
-//    for(int j=0;j<n;j++)
-//        BN_GF2m_add_sse(r, a, p);
-//    
-//    t = clock() - t; // время выполнения
-//
-//    float t1;
-//
-//    t1 = clock();
-//    for(int j=0;j<n;j++)
-//        BN_GF2m_add_original(r2, a, p);
-//    t1 = clock() - t; // время выполнения
-//
-//    t /= n;
-//    t1 /= n;
-//
-//    printf("sse -> %f\n",t); 
-//    printf("openssl -> %f",t1);
-//    
-//    if(BN_cmp(r, r2))
-//    {
-//        printf("\nresults is equal\n");
-//    }
-    
-    //BN_rs
-    
-//    BN_GF2m_mod()
-    
-//    int l = sizeof(BN_ULONG);
-//    l = sizeof(unsigned long long);
-//    
-//    BIGNUM * a = BN_new();
-//    BIGNUM * p = BN_new();
-//    BIGNUM * r = BN_new();
-//    
-//    int _p[] = {173, 10, 2, 1, 0, -1};
-//    int _a[] = {191, 9, 0, -1};
-//    
-//    int resule[16] = {0};
-//    
-//    BN_GF2m_arr2poly(_p, p);
-//    //BN_set_bit(p, 225);
-//    //BN_print_fp(stdout, p);
-//    
-//    for(int i=0;i<p->dmax;i++)
-//    {
-//        printf("%lx|", p->d[i]);
-//    }
-//    return 1;
-//    
-//    BN_GF2m_arr2poly(_a, a);
-//    
-//    BN_GF2m_mod_original(r, a, p);
-//    
-//    BN_GF2m_poly2arr(r, resule, 16);
-//    
-//    for(int i=0;i<16;i++)
-//    {
-//        printf("%d|", resule[i]);
-//    }
-//    
-//    BN_GF2m_mod_shrop(r, a);
-//    
-//    BN_GF2m_poly2arr(r, resule, 16);
-//    
-//    printf("\n");
-//    for(int i=0;i<16;i++)
-//    {
-//        printf("%d|", resule[i]);
-//    }
-
 }
