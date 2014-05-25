@@ -207,22 +207,26 @@ void BN_GF2m_mod_bin_original(BIGNUM *r, BIGNUM *a, const int p[])
     // k1 = p[3]
     
     int gi = 0;
+    BN_copy(r, a);
     
     for(int i = 2 * p[0] - 1; i >= p[0]; i--)
     {
         gi = BN_is_bit_set(a, i);
-        BIGNUM * _t = BN_new();
-        BN_set_bit_value(_t, i - p[0], gi);
-        BN_set_bit_value(_t, i - p[0]+p[1], gi);
-        BN_set_bit_value(_t, i - p[0]+p[2], gi);
-        BN_set_bit_value(_t, i - p[0]+p[3], gi);
-        
-        BN_GF2m_add_original(a, a, _t);
+        if(gi)
+        {
+            BIGNUM * _t = BN_new();
+            BN_set_bit_value(_t, i - p[0], gi);
+            BN_set_bit_value(_t, i - p[0]+p[1], gi);
+            BN_set_bit_value(_t, i - p[0]+p[2], gi);
+            BN_set_bit_value(_t, i - p[0]+p[3], gi);
+
+            BN_GF2m_add_original(r, r, _t);
+        }
     }
     
     
     
-    BN_copy(r, a);
+    
     BN_mask_bits(r, p[0]);
 }
 
@@ -234,6 +238,7 @@ void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
     // k1 = p[3]
     
     int gi = 0;
+    BN_copy(r, a);
     
     for(int i = 2 * p[0] - 1; i >= p[0]; i--)
     {
@@ -244,11 +249,11 @@ void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
         BN_set_bit_value(_t, i - p[0]+p[2], gi);
         BN_set_bit_value(_t, i - p[0]+p[3], gi);
         
-        BN_GF2m_add_sse(a, a, _t);
+        BN_GF2m_add_sse(r, r, _t);
     }
     
     
     
-    BN_copy(r, a);
+    
     BN_mask_bits(r, p[0]);
 }

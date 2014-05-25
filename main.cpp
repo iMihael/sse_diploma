@@ -29,7 +29,7 @@ int binary_mul(int g, int h, int mod)
     return s;
 }
 
-void BN_GF2m_mod_mul_bin(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
+void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
 {
     // m = p[0]
     // k3 = p[1]
@@ -51,7 +51,21 @@ void BN_GF2m_mod_mul_bin(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
             BIGNUM * h1 = BN_new();
             BN_lshift(h1, h, i);
             BN_GF2m_add_original(s, s, h1);
+            
+            BIGNUM * sp = BN_new();
+            BIGNUM * so = BN_new();
+            BN_copy(sp, s);
+            BN_copy(so, sp);
+            
             BN_GF2m_mod_bin_original(s, s, p);
+            BN_GF2m_mod_arr(sp, sp, p);
+            
+            if(BN_cmp(s, sp) != 0)
+            {
+                int l=0;
+            }
+            
+            //BN_GF2m_mod_bin_sse(s, s, p);
         }
     }
     
@@ -61,6 +75,16 @@ void BN_GF2m_mod_mul_bin(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
 
 int main()
 {
+    int __ff[] = {10, 5, 4, 1, 0, -1};
+    BIGNUM * test = BN_new();
+    BIGNUM * result = BN_new();
+    BN_set_word(test, 5259);
+    
+    BN_GF2m_mod_bin_original(result, test, __ff);
+    BN_GF2m_mod_arr(result, test, __ff);
+    
+
+    
     // f = x6 + x4 + x3 + x + 1 // mod
     // g = x4 + x2 + 1
     // h = x2 + x + 1
@@ -80,33 +104,42 @@ int main()
     BIGNUM *_s = BN_new();
     BN_CTX *gfg = BN_CTX_new();
     
+    int gg[]= {7, 4,  0, -1};
+    int hh[] = {5, 3, 0, -1};
+    int ff[] = {10, 5, 4, 1, 0, -1};
+    int ss[64] = {0};
     
-    int gg[]= {4, 2,  0, -1};
-    int hh[] = {2, 1, 0, -1};
-    int ff[] = {6, 4, 3, 1, 0, -1};
-    int ss[16] = {0};
     BN_GF2m_arr2poly(gg, _g);
     BN_GF2m_arr2poly(hh, _h);
     BN_GF2m_arr2poly(ff, _f);
     
     BN_GF2m_mod_mul(_s, _g, _h, _f, gfg);
+    BN_GF2m_poly2arr(_s, ss, 64);
     
-    BN_GF2m_poly2arr(_s, ss, 16);
-    
-    
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 64; i++)
     {
         printf("%d|", ss[i]);
     }
     
-    BN_GF2m_mod_mul_bin(_s, _g, _h, ff);
-    BN_GF2m_poly2arr(_s, ss, 16);
+    BIGNUM *_g2 = BN_new();
+    BIGNUM *_h2 = BN_new();
+    BIGNUM *_f2 = BN_new();
+    BIGNUM *_s2 = BN_new();
+       
+    int ss2[64] = {0};
+    
+    BN_GF2m_arr2poly(gg, _g2);
+    BN_GF2m_arr2poly(hh, _h2);
+    BN_GF2m_arr2poly(ff, _f2);
+    
+    BN_GF2m_mod_mul_bin_original(_s2, _g2, _h2, ff);
+    BN_GF2m_poly2arr(_s2, ss2, 64);
     
     printf("\n");
     
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 64; i++)
     {
-        printf("%d|", ss[i]);
+        printf("%d|", ss2[i]);
     }
     
     
