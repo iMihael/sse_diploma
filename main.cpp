@@ -5,92 +5,80 @@
 
 #include "sse.h"
 
-
+int binary_mul(int g, int h, int mod)
+{
+    int d = 4;
+    int m = 6;
+    int k3 = 4;
+    int k2 = 3;
+    int k1 = 1;
+    
+    int s = 0;
+    if(g & 1)
+        s = h;
+    
+    for(int i=1; i <= d; i++)
+    {
+        if(g & (1 << i))
+        {
+            s ^= h << i;
+            s = binary_reduction2(m, k3, k2, k1, s);
+        }
+    }
+    
+//    for(int i=1; i < d; i++ )
+//    {
+//        h1 = h1 << 1;
+//        h1 = binary_reduction2(m,k3,k2,k1,h1);
+//        if(g & (1 << i))
+//            s ^= h1;
+//    }
+    
+    
+    return s;
+}
 
 
 int main()
 {
-    int m = 13;
+    // f = x6 + x4 + x3 + x + 1 // mod
+    // g = x4 + x2 + 1
+    // h = x2 + x + 1
+    
+    int mod = 0x5B;
+    int g = 0x15;
+    int h = 0x7;
+
+    
+    int r = binary_mul(g, h, mod);
+    
+    printf("%x\n", r);
+    
+    BIGNUM *_g = BN_new();
+    BIGNUM *_h = BN_new();
+    BIGNUM *_f = BN_new();
+    BIGNUM *_s = BN_new();
+    BN_CTX *gfg = BN_CTX_new();
     
     
-    int k3 = 9;
-    int k2 = 6;
-    int k1 = 2;
+    int gg[]= {4, 2,  0, -1};
+    int hh[] = {2, 1, 0, -1};
+    int ff[] = {6, 4, 3, 1, 0, -1};
+    int ss[16] = {0};
+    BN_GF2m_arr2poly(gg, _g);
+    BN_GF2m_arr2poly(hh, _h);
+    BN_GF2m_arr2poly(ff, _f);
     
-    // mod = x6 + x4 + x3 + x + 1
-    //int mod = 0x5B;
+    BN_GF2m_mod_mul(_s, _g, _h, _f, gfg);
     
-    //g = x7 + x4 + x2 + 1
-    int g;
-    
-    int iteration = 0xFFFFFF;
-    float t = clock();
+    BN_GF2m_poly2arr(_s, ss, 16);
     
     
-    for(int j = 0;j<iteration;j++)
+    for(int i = 0; i < 16; i++)
     {
-        g = 0x82B01;
-        g = binary_reduction1(m, k3, k2, k1, g);
+        printf("%d|", ss[i]);
     }
     
-    t = clock() - t;
-    printf("%f\n", t);
-    
-    
-    printf("%x\n", g);
-    
-    
-    
-    
-    
-    t = clock();
-    
-    for(int j = 0;j<iteration;j++)
-    {
-        g = 0x82B01;
-        g = binary_reduction2(m, k3, k2, k1, g);
-    }
-    
-    t = clock() - t;
-    printf("%f\n", t);
-    
-    
-    printf("%x\n", g);
-    
-    BIGNUM * rb;
-            
-    t = clock();
-        
-    for(int j = 0;j<iteration;j++)
-    {
-        BIGNUM * modb = BN_new();
-        int mod_arr[] = {321, 254, 180, 125, 0, -1};
-        BN_GF2m_arr2poly(mod_arr, modb);
-
-        BIGNUM * gb = BN_new();
-        int g_arr[] = {413, 212, 192, 11, 9, 8, 0, -1};
-        BN_GF2m_arr2poly(g_arr, gb);
-
-        rb = BN_new();
-
-        BN_GF2m_mod_bin_sse(rb, gb, mod_arr);
-        
-        //BN_GF2m_mod_bin_original(rb, gb, mod_arr);
-
-        //classic BIGNUM GF2m_mod example
-
-        //BN_GF2m_mod_original(rb, gb, modb);
-    
-    }
-    
-    t = clock() - t;
-    printf("%f\n", t);
-    
-    int r_arr[16] = {0};
-    BN_GF2m_poly2arr(rb, r_arr, 16);
-    
-    for(int i=0;i<16;i++)
-        printf("%d|", r_arr[i]);
     
     
 }
