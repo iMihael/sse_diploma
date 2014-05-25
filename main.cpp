@@ -26,16 +26,36 @@ int binary_mul(int g, int h, int mod)
         }
     }
     
-//    for(int i=1; i < d; i++ )
-//    {
-//        h1 = h1 << 1;
-//        h1 = binary_reduction2(m,k3,k2,k1,h1);
-//        if(g & (1 << i))
-//            s ^= h1;
-//    }
-    
-    
     return s;
+}
+
+void BN_GF2m_mod_mul_bin(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int arr[16] = {};
+    BN_GF2m_poly2arr(g, arr, 16);
+    int d = arr[0];
+    
+    BIGNUM * s = BN_new();
+    if( BN_is_bit_set(g, 0) )
+        BN_copy(s, h);
+    
+    for(int i=1; i<=d;i++)
+    {
+        if(BN_is_bit_set(g, i))
+        {
+            BIGNUM * h1 = BN_new();
+            BN_lshift(h1, h, i);
+            BN_GF2m_add_original(s, s, h1);
+            BN_GF2m_mod_bin_original(s, s, p);
+        }
+    }
+    
+    BN_copy(r, s);
 }
 
 
@@ -79,6 +99,15 @@ int main()
         printf("%d|", ss[i]);
     }
     
+    BN_GF2m_mod_mul_bin(_s, _g, _h, ff);
+    BN_GF2m_poly2arr(_s, ss, 16);
+    
+    printf("\n");
+    
+    for(int i = 0; i < 16; i++)
+    {
+        printf("%d|", ss[i]);
+    }
     
     
 }
