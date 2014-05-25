@@ -3,30 +3,7 @@
 #include <tmmintrin.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>
-
-int BN_set_bit_value(BIGNUM *a, int n, BN_ULONG bit)
-{
-    int i,j,k;
-
-    if (n < 0)
-            return 0;
-
-    i=n/BN_BITS2;
-    j=n%BN_BITS2;
-    if (a->top <= i)
-            {
-            if (bn_wexpand(a,i+1) == NULL) return(0);
-            for(k=a->top; k<i+1; k++)
-                    a->d[k]=0;
-            a->top=i+1;
-            }
-
-    //x = x & ~(1 << n) | (b << n);
-    a->d[i] = a->d[i] & ~(((BN_ULONG)1)<<j) | (bit << j);
-    //a->d[i]|=(((BN_ULONG)1)<<j);
-    bn_check_top(a);
-    return(1);
-}
+#include "sse.h"
 
 int BN_GF2m_add_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 {
@@ -195,4 +172,83 @@ int BN_GF2m_mod_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *p)
     ret = BN_GF2m_mod_arr_sse(r, a, arr);
     bn_check_top(r);
     return ret;
+}
+
+
+int BN_set_bit_value(BIGNUM *a, int n, BN_ULONG bit)
+{
+    int i,j,k;
+
+    if (n < 0)
+            return 0;
+
+    i=n/BN_BITS2;
+    j=n%BN_BITS2;
+    if (a->top <= i)
+            {
+            if (bn_wexpand(a,i+1) == NULL) return(0);
+            for(k=a->top; k<i+1; k++)
+                    a->d[k]=0;
+            a->top=i+1;
+            }
+
+    //x = x & ~(1 << n) | (b << n);
+    a->d[i] = a->d[i] & ~(((BN_ULONG)1)<<j) | (bit << j);
+    //a->d[i]|=(((BN_ULONG)1)<<j);
+    bn_check_top(a);
+    return(1);
+}
+
+void BN_GF2m_mod_bin_original(BIGNUM *r, BIGNUM *a, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int gi = 0;
+    
+    for(int i = 2 * p[0] - 1; i >= p[0]; i--)
+    {
+        gi = BN_is_bit_set(a, i);
+        BIGNUM * _t = BN_new();
+        BN_set_bit_value(_t, i - p[0], gi);
+        BN_set_bit_value(_t, i - p[0]+p[1], gi);
+        BN_set_bit_value(_t, i - p[0]+p[2], gi);
+        BN_set_bit_value(_t, i - p[0]+p[3], gi);
+        
+        BN_GF2m_add_original(a, a, _t);
+    }
+    
+    
+    
+    BN_copy(r, a);
+    BN_mask_bits(r, p[0]);
+}
+
+void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int gi = 0;
+    
+    for(int i = 2 * p[0] - 1; i >= p[0]; i--)
+    {
+        gi = BN_is_bit_set(a, i);
+        BIGNUM * _t = BN_new();
+        BN_set_bit_value(_t, i - p[0], gi);
+        BN_set_bit_value(_t, i - p[0]+p[1], gi);
+        BN_set_bit_value(_t, i - p[0]+p[2], gi);
+        BN_set_bit_value(_t, i - p[0]+p[3], gi);
+        
+        BN_GF2m_add_sse(a, a, _t);
+    }
+    
+    
+    
+    BN_copy(r, a);
+    BN_mask_bits(r, p[0]);
 }

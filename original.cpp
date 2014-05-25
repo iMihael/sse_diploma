@@ -175,3 +175,79 @@ int BN_GF2m_mod_original(BIGNUM *r, const BIGNUM *a, const BIGNUM *p)
     bn_check_top(r);
     return ret;
 }
+
+
+
+
+
+int xor_bit(int g, int pos1, int pos2)
+{
+    return g & ~(1 << pos1) | ((((g & (1 << pos1)) >> pos1) ^ ((g & (1 << pos2)) >> pos2)) << pos1);
+}
+
+int set_bit(int t, int pos, int val)
+{
+    return t & ~(1 << pos) | (val << pos);
+}
+
+/**
+ * r = g mod m
+ * 
+ * m = x^m + x^k3 + x^k2 + x^k1 + 1
+ * 
+ * 
+ * @param m
+ * @param k3
+ * @param k2
+ * @param k1
+ * @param g
+ * @return 
+ */
+int binary_reduction1(int m, int k3, int k2, int k1, int g)
+{
+    int modulo_mask = 0;
+    
+    for(int i=0;i<m;i++)
+    {
+        modulo_mask |= 1 << i;
+    }
+    
+    for(int i = 2 * m -1; i >= m; i--)
+    {
+        g = xor_bit(g, i-m, i);
+        g = xor_bit(g, i - m + k3, i);
+        g = xor_bit(g, i - m + k2, i);
+        g = xor_bit(g, i - m + k1, i);
+    }
+    
+    g &= modulo_mask;
+    
+    return g;
+}
+
+int binary_reduction2(int m, int k3, int k2, int k1, int g)
+{
+    int modulo_mask = 0;
+    
+    for(int i=0;i<m;i++)
+    {
+        modulo_mask |= 1 << i;
+    }
+    
+    int gi = 0;
+        
+    for(int i = 2 * m -1; i >= m; i--)
+    {
+        gi = (g & (1 << i)) >> i;
+        int _t = set_bit(0, i-m, gi);
+        _t = set_bit(_t, i-m+k3, gi);
+        _t = set_bit(_t, i-m+k2, gi);
+        _t = set_bit(_t, i-m+k1, gi);
+        g = g ^ _t;
+    }
+    
+    g &= modulo_mask;
+    
+    return g;
+}
+
