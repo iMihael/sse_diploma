@@ -19,30 +19,20 @@ int BN_GF2m_add_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
     if(bn_wexpand(r, at->top) == NULL)
             return 0;
 
-    
-    for (i = 0; i < bt->top / 4; i++)
+    // maybe div 2 or div 3 or div 4
+    for (i = 0; i < bt->top / 2; i++)
     {
- //       __m128i * at128 = (__m128i *)at->d;
-//        __m128i _at128 = *at128;
-//        __m128i * bt128 = (__m128i *)bt->d;
-//        __m128i _bt128 = *bt128;
-        
-//        __m128 __at128 = _mm_load_ps(((const float *)at->d) + i * 4);
-//        __m128 __bt128 = _mm_load_ps(((const float *)bt->d) + i * 4);
-//        __m128 at_xor_bt = _mm_xor_ps(__at128, __bt128);
-////        _mm_store_ps(((float *)r->d) + i*4, at_xor_bt);
-//        *((__m128 *)r->d + i) = at_xor_bt;
-        
+
         _mm_store_ps(((float *)r->d) + i*4, _mm_xor_ps(
                 _mm_load_ps(((const float *)at->d) + i * 4),
                 _mm_load_ps(((const float *)bt->d) + i * 4))
                 );
-        //_mm_xor_ps()
+
         
-      // *((__m128i *)r->d + i) = _mm_xor_si128(*(((__m128i *)at->d) + i), *(((__m128i *)bt->d) + i) );
+       //*((__m128i *)r->d + i) = _mm_xor_si128(*(((__m128i *)at->d) + i), *(((__m128i *)bt->d) + i) );
     }
 
-    for (i = (bt->top / 4) * 4; i < bt->top; i++)
+    for (i = (bt->top / 2) * 2; i < bt->top; i++)
     {
         r->d[i] = at->d[i] ^ bt->d[i];
     }
@@ -223,10 +213,7 @@ void BN_GF2m_mod_bin_original(BIGNUM *r, BIGNUM *a, const int p[])
             BN_GF2m_add_original(r, r, _t);
         }
     }
-    
-    
-    
-    
+  
     BN_mask_bits(r, p[0]);
 }
 
@@ -243,17 +230,17 @@ void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
     for(int i = 2 * p[0] - 1; i >= p[0]; i--)
     {
         gi = BN_is_bit_set(a, i);
-        BIGNUM * _t = BN_new();
-        BN_set_bit_value(_t, i - p[0], gi);
-        BN_set_bit_value(_t, i - p[0]+p[1], gi);
-        BN_set_bit_value(_t, i - p[0]+p[2], gi);
-        BN_set_bit_value(_t, i - p[0]+p[3], gi);
-        
-        BN_GF2m_add_sse(r, r, _t);
+        if(gi)
+        {
+            BIGNUM * _t = BN_new();
+            BN_set_bit_value(_t, i - p[0], gi);
+            BN_set_bit_value(_t, i - p[0]+p[1], gi);
+            BN_set_bit_value(_t, i - p[0]+p[2], gi);
+            BN_set_bit_value(_t, i - p[0]+p[3], gi);
+
+            BN_GF2m_add_sse(r, r, _t);
+        }
     }
-    
-    
-    
     
     BN_mask_bits(r, p[0]);
 }
