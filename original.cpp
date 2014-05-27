@@ -1,6 +1,8 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
 
+#include "sse.h"
+
 int BN_GF2m_add_original(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 {
     int i;
@@ -251,3 +253,55 @@ int binary_reduction2(int m, int k3, int k2, int k1, int g)
     return g;
 }
 
+int binary_mul(int g, int h, int mod)
+{
+    int d = 4;
+    int m = 6;
+    int k3 = 4;
+    int k2 = 3;
+    int k1 = 1;
+    
+    int s = 0;
+    if(g & 1)
+        s = h;
+    
+    for(int i=1; i <= d; i++)
+    {
+        if(g & (1 << i))
+        {
+            s ^= h << i;
+            s = binary_reduction2(m, k3, k2, k1, s);
+        }
+    }
+    
+    return s;
+}
+
+void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int arr[16] = {};
+    BN_GF2m_poly2arr(g, arr, 16);
+    int d = arr[0];
+    
+    BIGNUM * s = BN_new();
+    if( BN_is_bit_set(g, 0) )
+        BN_copy(s, h);
+    
+    for(int i=1; i<=d;i++)
+    {
+        if(BN_is_bit_set(g, i))
+        {
+            BIGNUM * h1 = BN_new();
+            BN_lshift(h1, h, i);
+            BN_GF2m_add_original(s, s, h1);
+            BN_GF2m_mod_bin_original(s, s, p);
+        }
+    }
+    
+    BN_copy(r, s);
+}

@@ -244,3 +244,32 @@ void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
     
     BN_mask_bits(r, p[0]);
 }
+
+void BN_GF2m_mod_mul_bin_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int arr[16] = {};
+    BN_GF2m_poly2arr(g, arr, 16);
+    int d = arr[0];
+    
+    BIGNUM * s = BN_new();
+    if( BN_is_bit_set(g, 0) )
+        BN_copy(s, h);
+    
+    for(int i=1; i<=d;i++)
+    {
+        if(BN_is_bit_set(g, i))
+        {
+            BIGNUM * h1 = BN_new();
+            BN_lshift(h1, h, i);
+            BN_GF2m_add_sse(s, s, h1);
+            BN_GF2m_mod_bin_sse(s, s, p);
+        }
+    }
+    
+    BN_copy(r, s);
+}
