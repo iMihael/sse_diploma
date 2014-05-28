@@ -4,98 +4,155 @@
 #include <unistd.h>
 #include "sse.h"
 
+
+void BN_GF2m_mod_mul_comb(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
+{
+    int d = BN_num_bits(g);
+    int v = 32;
+    int w = 4;
+    int p = d / v + 1;
+    int q = v / w;
+    unsigned int u = 0;
+    unsigned int mask = 0xF;
+    
+    int k = ((1 << w) - 1);
+    BIGNUM ** Ru = new BIGNUM*[k];
+    for(int i=0;i<k;i++)
+    {
+        Ru[i] = BN_new();
+        BN_zero(Ru[i]);
+    }
+    
+    BIGNUM * Ut = BN_new();
+    BN_set_word(Ut, 0);
+    
+    for(int i = 0; i < k; i++)
+    {
+        BN_set_word(Ut, i);
+        BN_GF2m_mod_mul_bin_original(Ru[i], Ut, h, mod);
+    }
+    
+    BIGNUM * S = BN_new();
+    
+    for(int ka = q - 1; ka >= 0; ka--)
+    {
+        for(int i=0;i<p;i++)
+        {
+            u = (g->d[i] & (mask << (ka * 4))) >> (ka * 4);
+            
+            for(int l=i, j=0;j<Ru[u]->top; l++, j++)
+            {
+                bn_wexpand(S, i+1);
+                S->d[l] ^= Ru[u]->d[j];
+                S->top = i + 1;
+            }
+        }
+        
+        if(ka!=0)
+        {
+            BN_lshift(S, S, w);
+            BN_GF2m_mod_bin_original(S, S, mod);
+        }
+    }
+    
+    BN_GF2m_mod_bin_original(S, S, mod);
+    BN_copy(r, S);
+}
+
+
+void BN_GF2m_mod_mul_comb_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
+{
+    int d = BN_num_bits(g);
+    int v = 32;
+    int w = 4;
+    int p = d / v + 1;
+    int q = v / w;
+    unsigned int u = 0;
+    unsigned int mask = 0xF;
+    
+    int k = ((1 << w) - 1);
+    BIGNUM ** Ru = new BIGNUM*[k];
+    for(int i=0;i<k;i++)
+    {
+        Ru[i] = BN_new();
+        BN_zero(Ru[i]);
+    }
+    
+    BIGNUM * Ut = BN_new();
+    BN_set_word(Ut, 0);
+    
+    for(int i = 0; i < k; i++)
+    {
+        BN_set_word(Ut, i);
+        BN_GF2m_mod_mul_bin_sse(Ru[i], Ut, h, mod);
+    }
+    
+    BIGNUM * S = BN_new();
+    
+    for(int ka = q - 1; ka >= 0; ka--)
+    {
+        for(int i=0;i<p;i++)
+        {
+            u = (g->d[i] & (mask << (ka * 4))) >> (ka * 4);
+            
+            for(int l=i, j=0;j<Ru[u]->top; l++, j++)
+            {
+                bn_wexpand(S, i+1);
+                S->d[l] ^= Ru[u]->d[j];
+                S->top = i + 1;
+            }
+        }
+        
+        if(ka!=0)
+        {
+            BN_lshift(S, S, w);
+            BN_GF2m_mod_bin_sse(S, S, mod);
+        }
+    }
+    
+    BN_GF2m_mod_bin_sse(S, S, mod);
+    BN_copy(r, S);
+}
+
+void print_pol(const int p[], int n)
+{
+    for(int i=0;i<n;i++)
+    {
+        printf("%d|", p[i]);
+    }
+    printf("\n");
+}
+
 int main()
 {
-    int __ff[] = {10, 5, 4, 1, 0, -1};
-    BIGNUM * test = BN_new();
-    BIGNUM * result = BN_new();
-    BN_set_word(test, 5259);
+    int p[] = {503, 3, 0, -1};
+    int _g[] = {625, 17, 13, 9, 7, 1, 0, -1};
     
-    BN_GF2m_mod_bin_original(result, test, __ff);
-    BN_GF2m_mod_arr(result, test, __ff);
     
+    BIGNUM * g = BN_new();
+    BIGNUM * g2 = BN_new();
+    BIGNUM * mod = BN_new();
+    BIGNUM * r = BN_new();
+    BIGNUM * r_comb = BN_new();
+    
+    BN_GF2m_arr2poly(_g, g);
+    BN_GF2m_arr2poly(_g, g2);
 
+//    BN_GF2m_mod_shrop163(r, g);
+//    
+    BN_GF2m_mod_arr_original(r, g, p);
     
-    // f = x6 + x4 + x3 + x + 1 // mod
-    // g = x4 + x2 + 1
-    // h = x2 + x + 1
+    int ret[64] = {0};
+    int ret_comb[64] = {0};
     
-    int mod = 0x5B;
-    int g = 0x15;
-    int h = 0x7;
-
-    
-    int r = binary_mul(g, h, mod);
-    
-    printf("%x\n", r);
-    
-    BIGNUM *_g = BN_new();
-    BIGNUM *_h = BN_new();
-    BIGNUM *_f = BN_new();
-    BIGNUM *_s = BN_new();
-    BN_CTX *gfg = BN_CTX_new();
-    
-    int gg[]= {15635, 999, 500,45, 5, 0, -1};
-    int hh[] = {635, 600, 3, 0, -1};
-    int ff[] = {8000, 56, 47, 1, 0, -1};
-    int ss[64] = {0};
-    
-    BN_GF2m_arr2poly(gg, _g);
-    BN_GF2m_arr2poly(hh, _h);
-    BN_GF2m_arr2poly(ff, _f);
-    
-    float t=clock();
-    
-    for (int i = 0; i<0xFFF; i++)
-    {
-        BN_GF2m_mod_mul_bin_original(_s, _g, _h, ff);
-    }
-    
-    t = clock() - t;
-    
-    printf("%f\n", t);
-   
-    BN_GF2m_poly2arr(_s, ss, 64);
-    
-    printf("\n");
-    
-    for(int i = 0; i < 64; i++)
-    {
-        printf("%d|", ss[i]);
-    }
-    
-    printf("\n");
-    
-    BIGNUM *_g2 = BN_new();
-    BIGNUM *_h2 = BN_new();
-    BIGNUM *_f2 = BN_new();
-    BIGNUM *_s2 = BN_new();
-       
-    int ss2[64] = {0};
-    
-    BN_GF2m_arr2poly(gg, _g2);
-    BN_GF2m_arr2poly(hh, _h2);
-    BN_GF2m_arr2poly(ff, _f2);
-    
-    t = clock();
-    for (int i = 0; i < 0xFFF; i++)
-    {
-        BN_GF2m_mod_mul_bin_sse(_s2, _g2, _h2, ff);
-    }
-    t = clock() - t;
-    
-    printf("%f", t);
-    
-    BN_GF2m_poly2arr(_s2, ss2, 64);
-    
-    printf("\n");
-    
-    for(int i = 0; i < 64; i++)
-    {
-        printf("%d|", ss2[i]);
-    }
+    BN_GF2m_poly2arr(r, ret, 64);
+    print_pol(ret, 64);
     
     
-   
+    BN_GF2m_mod_shrop503(r_comb, g2);
+    BN_GF2m_poly2arr(r_comb, ret_comb, 64);
+    print_pol(ret_comb, 64);
     
+    
+ 
 }

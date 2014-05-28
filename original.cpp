@@ -32,8 +32,91 @@ int BN_GF2m_add_original(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 
     return 1;
 }
+/**
+ * Works only on x86 (i386)
+ * with modulo x163 + x7 + x6 + x3 + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop163(BIGNUM *r, BIGNUM *a)
+{
+    BIGNUM * mod = BN_new();
+    int p[] = {163, 7, 6, 3, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+    
+    BN_ULONG T;
+    
+    for(int i = n; i>L; i--)
+    {
+        T = a->d[i];
+        a->d[i - 6] ^= (T << 29);
+        a->d[i - 5] ^= (T << 4) ^ (T << 3) ^ T ^ (T>>3);
+        a->d[i - 4] ^= (T >> 28) ^ (T >> 29);
+    }
+    
+    T = a->d[6] & 0xFFFFFFF8;
+    a->d[1] ^= (T << 4) ^ (T << 3) ^ T ^ (T >> 3);
+    a->d[2] ^= (T >> 28) ^ (T >> 29);
+    a->d[6] &= 0x00000007;
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+}
 
-int BN_GF2m_mod_shrop(BIGNUM *r, BIGNUM *a)
+/**
+ * Works only on x86 (i386)
+ * with modulo x503 + x3 + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop503(BIGNUM *r, BIGNUM *a)
+{
+    BIGNUM * mod = BN_new();
+    int p[] = {503, 3, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+    
+    BN_ULONG T;
+    
+    for(int i = n; i>L; i--)
+    {
+        T = a->d[i];
+        a->d[i - 16] ^= (T<<12)^(T<<9);
+        a->d[i - 17] ^= (T>>20)^(T>>23);
+    }
+    
+    T = a->d[16] & 0xFF800000;
+
+    a->d[1] ^= (T>>20)^(T>>23);
+    a->d[16] &= 0x007FFFFF;
+    
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+}
+
+/**
+ * Works only on x86 (i386)
+ * with modulo x173 + x10 + x2 + x + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop173(BIGNUM *r, BIGNUM *a)
 {
     BIGNUM * mod = BN_new();
     int p[] = {173, 10, 2, 1, 0, -1};
@@ -42,26 +125,27 @@ int BN_GF2m_mod_shrop(BIGNUM *r, BIGNUM *a)
     if(mod->top > a->top)
         BN_copy(r, a);
     
-    int n = mod->top;
-    int L = a->top;
+    int n = a->top;
+    int L = mod->top;
     
     BN_ULONG T;
     
     for(int i = n; i>L; i--)
     {
         T = a->d[i];
-        a->d[i - 4] ^= (T >> 3) ^ (T >> 11) ^ (T >> 12) ^ (T >> 13);
-        a->d[i - 5] ^= (T << 29) ^ (T << 21) ^ (T << 20) ^ (T << 19);
+        a->d[i - 5] ^= (T>>3)^(T>>11)^(T>>12)^(T>>13);
+        a->d[i - 6] ^= (T<<29)^(T<<21)^(T<<20)^(T<<19);
     }
     
-    T = a->d[5] & 0xFFFFE000;
-    a->d[0] ^= (T >> 3) ^ (T >> 11) ^ (T >> 12) ^ (T >> 13);
-    a->d[5] &= 0x1FFF;
+    T = a->d[6] & 0xFFFFE000;
+    a->d[1] ^= (T>>3)^(T>>11)^(T>>12)^(T>>13);
+    a->d[6] &= 0x1FFF;
+    
+    
     if(a->top > mod->top)
         a->top = mod->top;
     
     BN_copy(r, a);
-    return 1;
 }
 
 /* Performs modular reduction of a and store result in r.  r could be a. */
