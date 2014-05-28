@@ -73,6 +73,48 @@ void BN_GF2m_mod_shrop163(BIGNUM *r, BIGNUM *a)
 
 /**
  * Works only on x86 (i386)
+ * with modulo x509 + x23 + x3 + x2 + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop509(BIGNUM *r, BIGNUM *a)
+{
+    //TODO: Fix!
+    
+    BIGNUM * mod = BN_new();
+    int p[] = {509, 23, 3, 2, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+    
+    BN_ULONG T;
+    
+    for(int i = n; i>L; i--)
+    {
+        T = a->d[i];
+        a->d[i - 16] ^= (T<<3)^(T<<5)^(T<<6)^(T<<26);
+        a->d[i - 17] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
+    }
+    
+    T = a->d[16] & 70000000;
+
+    a->d[1] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
+    a->d[16] &= 0x8FFFFFFF;
+    
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+}
+
+
+/**
+ * Works only on x86 (i386)
  * with modulo x503 + x3 + 1
  * @param r
  * @param a

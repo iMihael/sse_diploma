@@ -20,6 +20,7 @@ int binary_mul(int g, int h, int mod);
 void BN_GF2m_mod_mul_bin_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]);
 void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]);
 void BN_GF2m_mod_shrop503(BIGNUM *r, BIGNUM *a);
+void BN_GF2m_mod_shrop509(BIGNUM *r, BIGNUM *a);
 
 
 
