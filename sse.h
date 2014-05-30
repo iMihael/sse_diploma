@@ -21,6 +21,10 @@ void BN_GF2m_mod_mul_bin_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]);
 void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]);
 void BN_GF2m_mod_shrop503(BIGNUM *r, BIGNUM *a);
 void BN_GF2m_mod_shrop509(BIGNUM *r, BIGNUM *a);
+void print_pol(const int p[], int n);
+void print_BN(BIGNUM * r);
+void BN_fx_top(BIGNUM * a);
+void BN_GF2m_mod_mul_comb(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[]);
 
 
 

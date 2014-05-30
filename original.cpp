@@ -100,10 +100,10 @@ void BN_GF2m_mod_shrop509(BIGNUM *r, BIGNUM *a)
         a->d[i - 17] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
     }
     
-    T = a->d[16] & 70000000;
+    T = a->d[16] & 0xE0000000;
 
     a->d[1] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
-    a->d[16] &= 0x8FFFFFFF;
+    a->d[16] &= 0x1FFFFFFF;
     
     
     if(a->top > mod->top)
@@ -430,4 +430,90 @@ void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]
     }
     
     BN_copy(r, s);
+}
+
+void print_pol(const int p[], int n)
+{
+    for(int i=n-1;i>=0;i--)
+    {
+        printf("%d|", p[i]);
+    }
+    printf("\n");
+}
+
+void print_BN(BIGNUM * r)
+{
+    int p[32] = {0};
+    BN_GF2m_poly2arr(r, p, 32);
+    print_pol(p, 32);
+}
+
+void BN_fx_top(BIGNUM * a)
+{
+    for(int i=a->dmax;i>0;i--)
+    {
+        if(a->d[i - 1])
+        {
+            a->top = i + 1;
+            return;
+        }
+    }
+    a->top = 0;
+}
+
+void BN_GF2m_mod_mul_comb(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
+{
+    int v = 32;
+    int w = 4;
+    int p = g->top;
+    int q = v / w;
+    
+    unsigned int u = 0;
+    unsigned int mask = 0xF;
+    
+    int k = ((1 << w)/* - 1*/);
+    BIGNUM ** Ru = new BIGNUM*[k];
+    for(int i=0;i<k;i++)
+    {
+        Ru[i] = BN_new();
+    }
+    
+    BIGNUM * Ut = BN_new();
+    BN_zero(Ru[0]);
+    BN_copy(Ru[1], h);
+    
+    
+    for(int i = 2; i < k; i++)
+    {
+        BN_set_word(Ut, i);
+        BN_GF2m_mod_mul_bin_original(Ru[i], Ut, h, mod);
+    }
+    
+    BIGNUM * S = BN_new();
+    bn_wexpand(S, g->top * 2 + 1);
+    
+    
+    for(int ka = q - 1; ka >= 0; ka--)
+    {
+        for(int i=0;i<p;i++)
+        {
+            u = (g->d[i] >> (ka * 4)) & mask;
+            
+            
+            for(int l=i, j=0;j<Ru[k-1]->top; l++, j++)
+            {
+                S->d[l] ^= Ru[u]->d[j];
+            }
+        }
+        
+        BN_fx_top(S);
+        if(ka!=0)
+        {
+            BN_lshift(S, S, w);
+        }
+    }
+    
+
+    BN_GF2m_mod_arr(S, S, mod);
+    BN_copy(r, S);
 }
