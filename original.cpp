@@ -29,6 +29,8 @@ int BN_GF2m_add_original(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 
     r->top = at->top;
     bn_correct_top(r);
+    //BN_free((BIGNUM *)at);
+    //BN_free((BIGNUM *)bt);
 
     return 1;
 }
@@ -403,6 +405,59 @@ int binary_mul(int g, int h, int mod)
     return s;
 }
 
+int BN_set_bit_value(BIGNUM *a, int n, BN_ULONG bit)
+{
+    int i,j,k;
+
+    if (n < 0)
+            return 0;
+
+    i=n/BN_BITS2;
+    j=n%BN_BITS2;
+    if (a->top <= i)
+            {
+            if (bn_wexpand(a,i+1) == NULL) return(0);
+            for(k=a->top; k<i+1; k++)
+                    a->d[k]=0;
+            a->top=i+1;
+            }
+
+    //x = x & ~(1 << n) | (b << n);
+    a->d[i] = a->d[i] & ~(((BN_ULONG)1)<<j) | (bit << j);
+    //a->d[i]|=(((BN_ULONG)1)<<j);
+    bn_check_top(a);
+    return(1);
+}
+
+void BN_GF2m_mod_bin_original(BIGNUM *r, BIGNUM *a, const int p[])
+{
+    // m = p[0]
+    // k3 = p[1]
+    // k2 = p[2]
+    // k1 = p[3]
+    
+    int gi = 0;
+    BN_copy(r, a);
+    
+    for(int i = 2 * p[0] - 1; i >= p[0]; i--)
+    {
+        gi = BN_is_bit_set(a, i);
+        if(gi)
+        {
+            BIGNUM * _t = BN_new();
+            BN_set_bit_value(_t, i - p[0], gi);
+            BN_set_bit_value(_t, i - p[0]+p[1], gi);
+            BN_set_bit_value(_t, i - p[0]+p[2], gi);
+            BN_set_bit_value(_t, i - p[0]+p[3], gi);
+
+            BN_GF2m_add_original(r, r, _t);
+            BN_free(_t);
+        }
+    }
+  
+    BN_mask_bits(r, p[0]);
+}
+
 void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
 {
     // m = p[0]
@@ -426,10 +481,13 @@ void BN_GF2m_mod_mul_bin_original(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[]
             BN_lshift(h1, h, i);
             BN_GF2m_add_original(s, s, h1);
             BN_GF2m_mod_bin_original(s, s, p);
+            BN_free(h1);
+            
         }
     }
     
     BN_copy(r, s);
+    BN_free(s);
 }
 
 void print_pol(const int p[], int n)
@@ -514,6 +572,13 @@ void BN_GF2m_mod_mul_comb(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
     }
     
 
-    BN_GF2m_mod_arr(S, S, mod);
+    BN_GF2m_mod_bin_original(S, S, mod);
     BN_copy(r, S);
+    
+    BN_free(S);
+    BN_free(Ut);
+    for(int i=0;i<k;i++)
+        BN_free(Ru[i]);
+    
+    delete [] Ru;
 }

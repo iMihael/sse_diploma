@@ -33,7 +33,7 @@ void gen_Nnom(BIGNUM * p,const int N, int max)
 
 int main()
 {
-    int p[] = {360, 350, 300, 298, 0, -1};
+    int p[] = {1024, 12, 2, 1, 0, -1};
     //int _g[] = {76, 17, 13, 9, 7, 1, 0, -1};
     //int _h[] = {124, 16, 12, 8, 4, 1, 0, -1};
     
@@ -46,39 +46,46 @@ int main()
     BIGNUM * r = BN_new();
     BIGNUM * r2 = BN_new();
     
-    int iter = 0xFFFFF;
+    int iter = 0x100000;
     
-    BIGNUM ** Ru = new BIGNUM*[iter];
+    BIGNUM ** Hu = new BIGNUM*[iter];
+    BIGNUM ** Gu = new BIGNUM*[iter];
     //BN_rand(g, 2047, 1, 1);
     for(int i = 0; i < iter; i++)
     {
-        Ru[i] = BN_new();
+        Gu[i] = BN_new();
 //        gen_5nom(Ru[i], 16000);
-        //gen_Nnom(Ru[i], 5, 590);
-        BN_rand(Ru[i], 620, 1, 1);
+        gen_Nnom(Gu[i], 5, 1023);
+        //BN_rand(Ru[i], 4000, 1, 1);
     }
     
+    for(int i = 0; i < iter; i++)
+    {
+        Hu[i] = BN_new();
+//        gen_5nom(Ru[i], 16000);
+        gen_Nnom(Hu[i], 5, 1023);
+        //BN_rand(Ru[i], 4000, 1, 1);
+    }
     
     float t = clock();
     
     for(int i = 0; i< iter; i++)
     {
-        BN_GF2m_mod_bin_original(r, Ru[i], p);
+        BN_GF2m_mod_mul_comb(r, Gu[i], Hu[i], p);
     }
     
     t = clock() - t;
     
     printf("time to original: %f \n", t/CLOCKS_PER_SEC);
     
-    float tt = clock();
     
+    
+    float tt = clock();
     for(int i = 0; i< iter; i++)
     {
-       BN_GF2m_mod_bin_sse(r2, Ru[i], p);
+       BN_GF2m_mod_mul_comb_sse(r2, Gu[i], Hu[i], p);
     }
-    
     tt = clock() - tt;
-    
     printf("time to sse: %f \n", tt/CLOCKS_PER_SEC);
     
     
@@ -88,19 +95,9 @@ int main()
     printf("final time original: %f \n", finalt/CLOCKS_PER_SEC);
     printf("final time sse %f \n", finaltt/CLOCKS_PER_SEC);
     
-    if(BN_cmp(r, r2)!=0)
+    if(BN_cmp(r, r2) != 0)
     {
-        printf("fail");
+        printf("FAIL!\n");
     }
     
-    //BN_GF2m_arr2poly(_g, g);
-    //BN_GF2m_arr2poly(_h, h);
-    //BN_GF2m_mod_mul_arr(r, g, h, p, BN_CTX_new());
-    //int ret[32] = {0};
-    //BN_GF2m_poly2arr(r, ret, 32);
-    //print_pol(ret, 32);
-    //int ret2[32] = {0};
-    //BN_GF2m_mod_mul_comb(r2, g, h, p);
-    //BN_GF2m_poly2arr(r2, ret2, 32);
-    //print_pol(ret2, 32);
 }

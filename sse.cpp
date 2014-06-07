@@ -1,9 +1,74 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
-#include <tmmintrin.h>
+#include <openssl/bn.h>
+//#include <tmmintrin.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>
 #include "sse.h"
+
+void BN_GF2m_mod_mul_comb_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
+{
+    int v = 32;
+    int w = 4;
+    int p = g->top;
+    int q = v / w;
+    
+    unsigned int u = 0;
+    unsigned int mask = 0xF;
+    
+    int k = ((1 << w)/* - 1*/);
+    BIGNUM ** Ru = new BIGNUM*[k];
+    for(int i=0;i<k;i++)
+    {
+        Ru[i] = BN_new();
+    }
+    
+    BIGNUM * Ut = BN_new();
+    BN_zero(Ru[0]);
+    BN_copy(Ru[1], h);
+    
+    
+    for(int i = 2; i < k; i++)
+    {
+        BN_set_word(Ut, i);
+        BN_GF2m_mod_mul_bin_sse(Ru[i], Ut, h, mod);
+    }
+    
+    BIGNUM * S = BN_new();
+    bn_wexpand(S, g->top * 2 + 1);
+    
+    
+    for(int ka = q - 1; ka >= 0; ka--)
+    {
+        for(int i=0;i<p;i++)
+        {
+            u = (g->d[i] >> (ka * 4)) & mask;
+            
+            
+            for(int l=i, j=0;j<Ru[k-1]->top; l++, j++)
+            {
+                S->d[l] ^= Ru[u]->d[j];
+            }
+        }
+        
+        BN_fx_top(S);
+        if(ka!=0)
+        {
+            BN_lshift(S, S, w);
+        }
+    }
+    
+
+    BN_GF2m_mod_bin_sse(S, S, mod);
+    BN_copy(r, S);
+    
+    BN_free(S);
+    BN_free(Ut);
+    for(int i=0;i<k;i++)
+        BN_free(Ru[i]);
+    
+    delete [] Ru;
+}
 
 int BN_GF2m_add_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 {
@@ -44,177 +109,9 @@ int BN_GF2m_add_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 
     r->top = at->top;
     bn_correct_top(r);
-
+//    BN_free((BIGNUM *)at);
+//    BN_free((BIGNUM *)bt);
     return 1;
-}
-
-
-
-/* Performs modular reduction of a and store result in r.  r could be a. */
-int BN_GF2m_mod_arr_sse(BIGNUM *r, const BIGNUM *a, const int p[])
-{
-    int j, k;
-    int n, dN, d0, d1;
-    BN_ULONG zz, *z;
-
-    bn_check_top(a);
-
-    if (!p[0])
-    {
-        /* reduction mod 1 => return 0 */
-        BN_zero(r);
-        return 1;
-    }
-
-    /* Since the algorithm does reduction in the r value, if a != r, copy
-     * the contents of a into r so we can do reduction in r. 
-     */
-    if (a != r)
-    {
-        if (!bn_wexpand(r, a->top)) return 0;
-        for (j = 0; j < a->top; j++)
-        {
-                r->d[j] = a->d[j];
-        }
-        r->top = a->top;
-    }
-    z = r->d;
-
-    /* start reduction */
-    dN = p[0] / BN_BITS2;  
-    for (j = r->top - 1; j > dN;)
-    {
-        zz = z[j];
-        if (z[j] == 0) { j--; continue; }
-        z[j] = 0;
-
-        for (k = 1; p[k] != 0; k++)
-        {
-            /* reducing component t^p[k] */
-            n = p[0] - p[k];
-            d0 = n % BN_BITS2;  d1 = BN_BITS2 - d0;
-            n /= BN_BITS2; 
-            z[j-n] ^= (zz>>d0);
-            if (d0) z[j-n-1] ^= (zz<<d1);
-        }
-
-        /* reducing component t^0 */
-        n = dN;  
-        d0 = p[0] % BN_BITS2;
-        d1 = BN_BITS2 - d0;
-        z[j-n] ^= (zz >> d0);
-        if (d0) z[j-n-1] ^= (zz << d1);
-    }
-
-    /* final round of reduction */
-    while (j == dN)
-    {
-        d0 = p[0] % BN_BITS2;
-        zz = z[dN] >> d0;
-        if (zz == 0) break;
-        d1 = BN_BITS2 - d0;
-
-        /* clear up the top d1 bits */
-        if (d0)
-                z[dN] = (z[dN] << d1) >> d1;
-        else
-                z[dN] = 0;
-        z[0] ^= zz; /* reduction t^0 component */
-
-        for (k = 1; p[k] != 0; k++)
-        {
-            BN_ULONG tmp_ulong;
-
-            /* reducing component t^p[k]*/
-            n = p[k] / BN_BITS2;   
-            d0 = p[k] % BN_BITS2;
-            d1 = BN_BITS2 - d0;
-            z[n] ^= (zz << d0);
-            tmp_ulong = zz >> d1;
-            
-            if (d0 && tmp_ulong)
-                z[n+1] ^= tmp_ulong;
-        }
-    }
-
-    bn_correct_top(r);
-    return 1;
-}
-
-/* Performs modular reduction of a by p and store result in r.  r could be a.
- *
- * This function calls down to the BN_GF2m_mod_arr implementation; this wrapper
- * function is only provided for convenience; for best performance, use the 
- * BN_GF2m_mod_arr function.
- */
-int BN_GF2m_mod_sse(BIGNUM *r, const BIGNUM *a, const BIGNUM *p)
-{
-    int ret = 0;
-    int arr[6];
-    bn_check_top(a);
-    bn_check_top(p);
-    ret = BN_GF2m_poly2arr(p, arr, sizeof(arr)/sizeof(arr[0]));
-    if (!ret || ret > (int)(sizeof(arr)/sizeof(arr[0])))
-    {
-        BNerr(BN_F_BN_GF2M_MOD,BN_R_INVALID_LENGTH);
-        return 0;
-    }
-    ret = BN_GF2m_mod_arr_sse(r, a, arr);
-    bn_check_top(r);
-    return ret;
-}
-
-
-int BN_set_bit_value(BIGNUM *a, int n, BN_ULONG bit)
-{
-    int i,j,k;
-
-    if (n < 0)
-            return 0;
-
-    i=n/BN_BITS2;
-    j=n%BN_BITS2;
-    if (a->top <= i)
-            {
-            if (bn_wexpand(a,i+1) == NULL) return(0);
-            for(k=a->top; k<i+1; k++)
-                    a->d[k]=0;
-            a->top=i+1;
-            }
-
-    //x = x & ~(1 << n) | (b << n);
-    a->d[i] = a->d[i] & ~(((BN_ULONG)1)<<j) | (bit << j);
-    //a->d[i]|=(((BN_ULONG)1)<<j);
-    bn_check_top(a);
-    return(1);
-}
-
-void BN_GF2m_mod_bin_original(BIGNUM *r, BIGNUM *a, const int p[])
-{
-    // m = p[0]
-    // k3 = p[1]
-    // k2 = p[2]
-    // k1 = p[3]
-    
-    int gi = 0;
-    BN_copy(r, a);
-    
-    for(int i = 2 * p[0] - 1; i >= p[0]; i--)
-    {
-        gi = BN_is_bit_set(a, i);
-        if(gi)
-        {
-            BIGNUM * _t = BN_new();
-            BN_set_bit_value(_t, i - p[0], gi);
-            BN_set_bit_value(_t, i - p[0]+p[1], gi);
-            BN_set_bit_value(_t, i - p[0]+p[2], gi);
-            BN_set_bit_value(_t, i - p[0]+p[3], gi);
-
-            BN_GF2m_add_original(r, r, _t);
-        }
-    }
-  
-    BN_mask_bits(r, p[0]);
 }
 
 void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
@@ -239,6 +136,8 @@ void BN_GF2m_mod_bin_sse(BIGNUM *r, BIGNUM *a, const int p[])
             BN_set_bit_value(_t, i - p[0]+p[3], gi);
 
             BN_GF2m_add_sse(r, r, _t);
+            
+            BN_free(_t);
         }
     }
     
@@ -268,8 +167,10 @@ void BN_GF2m_mod_mul_bin_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int p[])
             BN_lshift(h1, h, i);
             BN_GF2m_add_sse(s, s, h1);
             BN_GF2m_mod_bin_sse(s, s, p);
+            BN_free(h1);
         }
     }
     
     BN_copy(r, s);
+    BN_free(s);
 }
