@@ -1,10 +1,122 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/bn.h>
-//#include <tmmintrin.h>
+#include <tmmintrin.h>
 #include <xmmintrin.h>
 #include <emmintrin.h>
 #include "sse.h"
+
+
+/**
+ * Works only on x86 (i386)
+ * with modulo x509 + x23 + x3 + x2 + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop509_sse(BIGNUM *r, BIGNUM *a)
+{
+    //TODO: Fix!
+    
+    BIGNUM * mod = BN_new();
+    int p[] = {509, 23, 3, 2, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+    
+    //BN_ULONG T;
+    __m128i T;
+    
+    /*_mm_store_ps(((float *)r->d) + i*4, _mm_xor_ps(
+                _mm_load_ps(((const float *)at->d) + i * 4),
+                _mm_load_ps(((const float *)bt->d) + i * 4))
+                );
+
+      */  
+       //*((__m128i *)r->d + i) = _mm_xor_si128(*(((__m128i *)at->d) + i), *(((__m128i *)bt->d) + i) );
+    
+    
+    //T = *(((__m128i *)(a->d + 18)));
+    
+    //__m128 PTS =  _mm_load_ps(((const float *)a->d));
+    
+    //__m128i *pT = (__m128i *)(a->d);
+    
+    for(int i = n; i>L; i-=2)
+    {
+        //T = a->d[i];
+        T = *(((__m128i *)(a->d+i-1)));
+        
+        //T = *(((__m128i *)(a->d + i)) );
+        
+        //a->d[i - 16] ^= (T<<3)^(T<<5)^(T<<6)^(T<<26);
+        //a->d[i - 17] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
+        *(((__m128i *)(a->d+i-1)) - 4) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_slli_epi16(T, 3), 
+                    _mm_slli_epi16(T, 5)
+                ),
+                _mm_xor_si128(
+                    _mm_slli_epi16(T, 6), 
+                    _mm_slli_epi32(T, 26)
+                )
+            );
+        
+        *(((__m128i *)(a->d+i-1)) - 5) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 3)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 2),
+                    _mm_srli_epi16(_mm_srli_si128(T, 12), 6)
+                )
+            );
+
+    }
+    
+    //__m128i T23 = *(((__m128i *)a->d) + 8);
+    //__m128i T18 = *(((__m128i *)(a->d + 16)));
+    
+    //T = a->d[16] & 0xE0000000;
+    
+    //T = *(((__m128i *)(a->d+16)));
+    
+    //__m128i T23 = *(((__m128i *)(a->d)) + 4);
+    
+    T = *(((__m128i *)(a->d))+4);
+    
+    __m128i T1 = {0, 0xE000000000000000};
+    T = _mm_and_si128(T, T1);
+    
+    //a->d[1] ^= (T>>29)^(T>>27)^(T>>26)^(T>>6);
+    //a->d[16] &= 0x1FFFFFFF;
+    *(((__m128i *)a->d) + 1) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 3)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 15), 2),
+                    _mm_srli_epi16(_mm_srli_si128(T, 12), 6)
+                )
+            );
+
+    __m128i T2 = {0xFFFFFFFFFFFFFFFF, 0xEFFFFFFFFFFFFFFF};
+    *(((__m128i *)a->d) + 4) = _mm_and_si128(*(((__m128i *)(a->d+16))), T2);
+    
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+}
 
 void BN_GF2m_mod_mul_comb_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
 {

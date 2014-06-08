@@ -3,6 +3,9 @@
 #include <openssl/bn.h>
 #include <unistd.h>
 #include "sse.h"
+#include <tmmintrin.h>
+#include <xmmintrin.h>
+#include <emmintrin.h>
 
 int myRand(int low, int high) {
    srand(time(NULL));
@@ -33,71 +36,40 @@ void gen_Nnom(BIGNUM * p,const int N, int max)
 
 int main()
 {
-    int p[] = {1024, 12, 2, 1, 0, -1};
+
+    int _g[] = {1024, 12, 2, 1, 0, -1};
+    int _p[] = {509, 23, 3, 2, 0, -1};
     //int _g[] = {76, 17, 13, 9, 7, 1, 0, -1};
     //int _h[] = {124, 16, 12, 8, 4, 1, 0, -1};
     
     
-    
-    
     BIGNUM * g = BN_new();
-    BIGNUM * h = BN_new();
-    BIGNUM * mod = BN_new();
+    BIGNUM * p = BN_new();
+    //BIGNUM * mod = BN_new();
     BIGNUM * r = BN_new();
     BIGNUM * r2 = BN_new();
     
-    int iter = 0x100000;
+    BN_GF2m_arr2poly(_g, g);
+    BN_GF2m_arr2poly(_p, p);
     
-    BIGNUM ** Hu = new BIGNUM*[iter];
-    BIGNUM ** Gu = new BIGNUM*[iter];
-    //BN_rand(g, 2047, 1, 1);
-    for(int i = 0; i < iter; i++)
+    BN_GF2m_mod(r, g, p);
+    BN_GF2m_mod_shrop509_sse(r2, g);
+    
+    if(BN_cmp(r, r2) == 0)
     {
-        Gu[i] = BN_new();
-//        gen_5nom(Ru[i], 16000);
-        gen_Nnom(Gu[i], 5, 1023);
-        //BN_rand(Ru[i], 4000, 1, 1);
+        printf("krababonga\n");
+    }
+    else
+    {
+        printf("fuck you!\n");
     }
     
-    for(int i = 0; i < iter; i++)
-    {
-        Hu[i] = BN_new();
-//        gen_5nom(Ru[i], 16000);
-        gen_Nnom(Hu[i], 5, 1023);
-        //BN_rand(Ru[i], 4000, 1, 1);
-    }
+    int _r[16] = {0};
+    int _r2[16] = {0};
     
-    float t = clock();
+    BN_GF2m_poly2arr(r, _r, 16);
+    BN_GF2m_poly2arr(r2, _r2, 16);
     
-    for(int i = 0; i< iter; i++)
-    {
-        BN_GF2m_mod_mul_comb(r, Gu[i], Hu[i], p);
-    }
-    
-    t = clock() - t;
-    
-    printf("time to original: %f \n", t/CLOCKS_PER_SEC);
-    
-    
-    
-    float tt = clock();
-    for(int i = 0; i< iter; i++)
-    {
-       BN_GF2m_mod_mul_comb_sse(r2, Gu[i], Hu[i], p);
-    }
-    tt = clock() - tt;
-    printf("time to sse: %f \n", tt/CLOCKS_PER_SEC);
-    
-    
-    float finalt = t/iter;
-    float finaltt = tt/iter;
-    
-    printf("final time original: %f \n", finalt/CLOCKS_PER_SEC);
-    printf("final time sse %f \n", finaltt/CLOCKS_PER_SEC);
-    
-    if(BN_cmp(r, r2) != 0)
-    {
-        printf("FAIL!\n");
-    }
-    
+    print_pol(_r, 16);
+    print_pol(_r2, 16);
 }
