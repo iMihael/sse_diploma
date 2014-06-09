@@ -8,7 +8,7 @@
 
 
 /**
- * Works only on x86 (i386)
+ * Works only on x86_64 (amd64)
  * with modulo x509 + x23 + x3 + x2 + 1
  * @param r
  * @param a
@@ -30,9 +30,9 @@ void BN_GF2m_mod_shrop509_sse(BIGNUM *r, BIGNUM *a)
     
     for(int i = n; i>L; i-=2)
     {
-        T = *(((__m128i *)(a->d+i-1)));
+        T = *(((__m128i *)(a->d+i-2)));
         
-        *(((__m128i *)(a->d+i-1)) - 4) = 
+        *(((__m128i *)(a->d+i-2)) - 4) = 
             _mm_xor_si128(
                 _mm_xor_si128(
                     _mm_slli_epi16(T, 3), 
@@ -44,7 +44,7 @@ void BN_GF2m_mod_shrop509_sse(BIGNUM *r, BIGNUM *a)
                 )
             );
         
-        *(((__m128i *)(a->d+i-1)) - 5) = 
+        *(((__m128i *)(a->d+i-2)) - 5) = 
             _mm_xor_si128(
                 _mm_xor_si128(
                     _mm_srli_epi16(_mm_srli_si128(T, 15), 5),
@@ -83,7 +83,170 @@ void BN_GF2m_mod_shrop509_sse(BIGNUM *r, BIGNUM *a)
         a->top = mod->top;
     
     BN_copy(r, a);
+    //BN_free(mod);
 }
+
+/**
+ * Works only on x86_64 (amd64)
+ * with modulo x163 + x7 + x6 + x3 + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop163_sse(BIGNUM *r, BIGNUM *a)
+{
+
+    BIGNUM * mod = BN_new();
+    int p[] = {163, 7, 6, 3, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+
+    __m128i T;
+    
+    for(int i = n; i>L; i-=2)
+    {
+        T = *(((__m128i *)(a->d+i-2)));
+        
+        *(((__m128i *)(a->d+i-2)) - 2) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_slli_epi16(_mm_slli_si128(T, 11), 5), 
+                    _mm_slli_si128(T, 12)
+                ),
+                _mm_xor_si128(
+                    _mm_slli_epi16(_mm_slli_si128(T, 12), 3), 
+                    _mm_slli_epi16(_mm_slli_si128(T, 12), 4) 
+                )
+            );
+        
+        *(((__m128i *)(a->d+i-2)) - 3) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 4), 3),
+                    _mm_srli_si128(T, 4)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 4)
+                )
+            );
+
+    }
+    
+    T = *(((__m128i *)(a->d))+4);
+    
+    __m128i T1 = {0, 0x7000000000000000};
+    T = _mm_and_si128(T, T1);
+    
+    *(((__m128i *)a->d) + 1) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 4), 3),
+                    _mm_srli_si128(T, 4)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 4)
+                )
+            );
+
+    __m128i T2 = {0xFFFFFFFFFFFFFFFF, 0x8FFFFFFFFFFFFFFF};
+    *(((__m128i *)a->d) + 4) = _mm_and_si128(*(((__m128i *)(a->d)) + 4), T2);
+    
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+    //BN_free(mod);
+}
+
+
+/**
+ * Works only on x86_64 (amd64)
+ * with modulo x173 + x10 + x2 + x + 1
+ * @param r
+ * @param a
+  */
+void BN_GF2m_mod_shrop173_sse(BIGNUM *r, BIGNUM *a)
+{
+
+    BIGNUM * mod = BN_new();
+    int p[] = {173, 10, 2, 1, 0, -1};
+    BN_GF2m_arr2poly(p, mod);
+    
+    if(mod->top > a->top)
+        BN_copy(r, a);
+    
+    int n = a->top;
+    int L = mod->top;
+
+    __m128i T;
+    
+    for(int i = n; i>L; i-=2)
+    {
+        T = *(((__m128i *)(a->d+i-2)));
+        
+        *(((__m128i *)(a->d+i-2)) - 2) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_slli_epi16(_mm_slli_si128(T, 10), 3), 
+                    _mm_slli_epi16(_mm_slli_si128(T, 10), 4)
+                ),
+                _mm_xor_si128(
+                    _mm_slli_epi16(_mm_slli_si128(T, 10), 5), 
+                    _mm_slli_epi16(_mm_slli_si128(T, 11), 5) 
+                )
+            );
+        
+        *(((__m128i *)(a->d+i-2)) - 3) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 5), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 5), 4)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 5), 3),
+                    _mm_srli_epi16(_mm_srli_si128(T, 4), 3)
+                )
+            );
+
+    }
+    
+    T = *(((__m128i *)(a->d))+4);
+    
+    __m128i T1 = {0, 0xE000000000000000};
+    T = _mm_and_si128(T, T1);
+    
+    *(((__m128i *)a->d) + 1) = 
+            _mm_xor_si128(
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 4), 3),
+                    _mm_srli_si128(T, 4)
+                ),
+                _mm_xor_si128(
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 5),
+                    _mm_srli_epi16(_mm_srli_si128(T, 3), 4)
+                )
+            );
+
+    __m128i T2 = {0xFFFFFFFFFFFFFFFF, 0x1FFFFFFFFFFFFFFF};
+    *(((__m128i *)a->d) + 4) = _mm_and_si128(*(((__m128i *)(a->d)) + 4), T2);
+    
+    
+    if(a->top > mod->top)
+        a->top = mod->top;
+    
+    BN_copy(r, a);
+    //BN_free(mod);
+}
+
+
+
 
 void BN_GF2m_mod_mul_comb_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[])
 {

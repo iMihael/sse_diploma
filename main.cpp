@@ -36,40 +36,74 @@ void gen_Nnom(BIGNUM * p,const int N, int max)
 
 int main()
 {
-
-    int _g[] = {1024, 12, 2, 1, 0, -1};
-    int _p[] = {509, 23, 3, 2, 0, -1};
-    //int _g[] = {76, 17, 13, 9, 7, 1, 0, -1};
-    //int _h[] = {124, 16, 12, 8, 4, 1, 0, -1};
     
+    int p509[] = {509, 23, 3, 2, 0, -1};
+    int p163[] = {163, 7, 6, 3, 0, -1};
     
+    int _g[] = {350, 165, 8, 7, 6, 5, 3, 0, -1};
     BIGNUM * g = BN_new();
-    BIGNUM * p = BN_new();
-    //BIGNUM * mod = BN_new();
+    BIGNUM * h = BN_new();
+    BIGNUM * mod = BN_new();
     BIGNUM * r = BN_new();
     BIGNUM * r2 = BN_new();
+//    
+//    BN_GF2m_arr2poly(_g, g);
+//    BN_GF2m_mod_shrop163_sse(r, g);
+//    print_BN(r);
+//    
+//    BN_GF2m_mod_arr(r2, g, p163);
+//    
+//    print_BN(r2);
+//    
+//    return 0;
     
-    BN_GF2m_arr2poly(_g, g);
-    BN_GF2m_arr2poly(_p, p);
     
-    BN_GF2m_mod(r, g, p);
-    BN_GF2m_mod_shrop509_sse(r2, g);
     
-    if(BN_cmp(r, r2) == 0)
+    int iter = 100000;
+    
+    BIGNUM ** Ru = new BIGNUM*[iter];
+    //BN_rand(number, 2047, 1, 1);
+    for(int i = 0; i < iter; i++)
     {
-        printf("krababonga\n");
+        Ru[i] = BN_new();
+        BN_rand(Ru[i], 1024, 1, 1);
     }
-    else
+    
+    
+    float t = clock();
+    
+    for(int i = 0; i< iter; i++)
     {
-        printf("fuck you!\n");
+        //BN_GF2m_mod_shrop509(r, Ru[i]);
+        //BN_GF2m_mod_shrop509_sse(r, Ru[i]);
+        //BN_GF2m_mod_bin_original(r, Ru[i], p509);
+        //BN_GF2m_mod_shrop173(r, Ru[i]);
+        //BN_GF2m_mod_shrop163_sse(r, Ru[i]);
+        BN_GF2m_mod_shrop173_sse(r, Ru[i]);
     }
     
-    int _r[16] = {0};
-    int _r2[16] = {0};
+    t = clock() - t;
     
-    BN_GF2m_poly2arr(r, _r, 16);
-    BN_GF2m_poly2arr(r2, _r2, 16);
+    printf("time to original: %f \n", t);
     
-    print_pol(_r, 16);
-    print_pol(_r2, 16);
+//    float tt = clock();
+//    
+//    for(int i = 0; i< iter; i++)
+//    {
+//       BN_GF2m_mod_shrop509_sse(r2, Ru[i]);
+//    }
+//    
+//    tt = clock() - tt;
+    
+//    printf("time to sse: %f \n", tt/CLOCKS_PER_SEC);
+    
+    
+    float finalt = t/iter;
+    
+//    float finaltt = tt/iter;
+    
+    printf("final time original: %f \n", finalt);
+//    printf("final time sse %f \n", finaltt/CLOCKS_PER_SEC);
+    
+
 }

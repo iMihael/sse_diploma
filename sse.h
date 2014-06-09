@@ -27,7 +27,8 @@ void BN_fx_top(BIGNUM * a);
 void BN_GF2m_mod_mul_comb(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[]);
 void BN_GF2m_mod_mul_comb_sse(BIGNUM *r, BIGNUM *g, BIGNUM *h, const int mod[]);
 void BN_GF2m_mod_shrop509_sse(BIGNUM *r, BIGNUM *a);
-
+void BN_GF2m_mod_shrop163_sse(BIGNUM *r, BIGNUM *a);
+void BN_GF2m_mod_shrop173_sse(BIGNUM *r, BIGNUM *a);
 
 
 #endif	/* SSE_H */

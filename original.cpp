@@ -112,6 +112,7 @@ void BN_GF2m_mod_shrop509(BIGNUM *r, BIGNUM *a)
         a->top = mod->top;
     
     BN_copy(r, a);
+    BN_free(mod);
 }
 
 
